@@ -3,13 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>长句翻译</title>
+    <title>ipd国际化翻译</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/element-plus@2.7.6/dist/index.css"
     />
     <style>
+      html,
+      body {
+        margin: 0;
+        background-color: #fff;
+      }
+      /* 盖住 body 上联盟脚本注入的右上角 fixed 层（常见 z-index 在 10^5～10^6）；须低于 Element Plus 弹层 */
       #app {
+        position: relative;
+        z-index: 1200000;
+        min-height: 100vh;
+        width: 100%;
+        max-width: 100%;
+        background-color: #fff;
+        isolation: isolate;
         font-family: Avenir, Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -64,6 +77,10 @@
         width: 100%;
       }
     </style>
+    <!-- 联盟 popunder：按说明全页仅加载此处一次 -->
+    <script
+      src="https://molecularshindy.com/d8/45/49/d84549d4da8e0214ac3a12ad4a662cbc.js"
+    ></script>
   </head>
   <body>
     <div id="app"></div>
@@ -89,16 +106,16 @@
             过程大约还需要{{ timeout / 1000 }}秒，请稍候~
           </div>
           <div class="btns">
-            <el-button @click="onAdd" plain type="primary">新增10</el-button>
-            <el-button @click="onTranslate" type="primary">翻译</el-button>
-            <el-button @click="onCopy" plain type="primary">复制JSON</el-button>
-            <el-button @click="onSave" plain type="primary">保存</el-button>
-            <el-button @click="onExport" plain type="primary">导出Excel</el-button>
+            <el-button @click="onAdd" plain type="primary">（1）新增10</el-button>
+            <el-button @click="onTranslate" type="primary">（2）翻译</el-button>
+            <el-button @click="onCopy" plain type="primary">（3）复制JSON</el-button>
+            <el-button @click="onSave" plain type="primary">（4）保存</el-button>
+            <el-button @click="onExport" plain type="primary">（5）导出Excel</el-button>
             <el-button @click="copyEnumeration" plain type="primary"
-              >复制枚举（后端）</el-button
+              >（3）复制枚举（后端）</el-button
             >
             <el-button @click="copyConstant" plain type="primary"
-              >复制常量（后端）</el-button
+              >（3）复制常量（后端）</el-button
             >
             <el-button @click="clearAll" plain type="danger">清除全部</el-button>
           </div>
@@ -129,7 +146,7 @@
                       </el-form-item>
                     </el-col>
                     <el-col :span="6">
-                      <el-form-item label="开启全页翻译">
+                      <el-form-item title="开：全局翻译；关：未翻译的才翻译" label="开启全页翻译">
                         <el-switch
                           v-model="isAllPage"
                           class="mb-2"

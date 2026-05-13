@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>长句翻译</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/element-plus@2.7.6/dist/index.css"
+    />
+    <style>
+      #app {
+        font-family: Avenir, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        color: #2c3e50;
+      }
+      .el-menu-demo {
+        padding: 0 10px !important;
+      }
+      .home {
+        padding: 10px 10px 10px;
+      }
+      .btns {
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        z-index: 999;
+        background-color: #fff;
+      }
+      .dialogMessage {
+        position: absolute;
+        top: -999999px;
+      }
+      .dialogMessage_text {
+        max-height: 450px;
+        overflow-y: auto;
+      }
+      .tips {
+        padding: 20px 0;
+        color: rgb(230, 65, 98);
+        font-size: 14px;
+      }
+      .timeout {
+        z-index: 9999;
+        width: 250px;
+        position: absolute;
+        top: 55%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      /* Tabs 内表格：避免 flex 子项 min-width:auto 把表压扁 */
+      .translate-table-wrap {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .translate-table-wrap .el-table .el-input {
+        width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <template id="app-template">
+      <div class="page-root">
+        <el-affix :offset="0">
+          <div class="el-menu-demo">
+            <el-menu
+              class="el-menu-demo"
+              mode="horizontal"
+              background-color="#545c64"
+              text-color="#fff"
+              active-text-color="#ffd04b"
+              default-active="long"
+            >
+              <el-menu-item index="long">长句翻译</el-menu-item>
+            </el-menu>
+          </div>
+        </el-affix>
+        <div class="home" v-loading="loading" element-loading-text="">
+          <div v-if="loading" class="timeout">
+            过程大约还需要{{ timeout / 1000 }}秒，请稍候~
+          </div>
+          <div class="btns">
+            <el-button @click="onAdd" plain type="primary">新增10</el-button>
+            <el-button @click="onTranslate" type="primary">翻译</el-button>
+            <el-button @click="onCopy" plain type="primary">复制JSON</el-button>
+            <el-button @click="onSave" plain type="primary">保存</el-button>
+            <el-button @click="onExport" plain type="primary">导出Excel</el-button>
+            <el-button @click="copyEnumeration" plain type="primary"
+              >复制枚举（后端）</el-button
+            >
+            <el-button @click="copyConstant" plain type="primary"
+              >复制常量（后端）</el-button
+            >
+            <el-button @click="clearAll" plain type="danger">清除全部</el-button>
+          </div>
+          <el-tabs
+            v-model="editableTabsValue"
+            type="card"
+            editable
+            class="demo-tabs"
+            @edit="handleTabsEdit"
+          >
+            <el-tab-pane
+              v-for="item in editableTabs"
+              :key="item.name"
+              :label="item.title"
+              :name="item.name"
+            >
+              <div v-if="editableTabsValue === item.name">
+                <el-form label-position="left" label-width="140px">
+                  <el-row :gutter="20">
+                    <el-col :span="6">
+                      <el-form-item label="子应用编码">
+                        <el-input clearable v-model="item.appCode"></el-input>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                      <el-form-item label="所属模块（租户）">
+                        <el-input clearable v-model="item.userModel"></el-input>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                      <el-form-item label="开启全页翻译">
+                        <el-switch
+                          v-model="isAllPage"
+                          class="mb-2"
+                          active-color="#13ce66"
+                          inactive-color="#ff4949"
+                          active-text="是"
+                          inactive-text="否"
+                        ></el-switch>
+                      </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                      <el-form-item label="迭代标记">
+                        <el-input clearable v-model="item.iteration"></el-input>
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+                </el-form>
+                <div class="translate-table-wrap">
+                  <el-table
+                    :data="item.content"
+                    border
+                    table-layout="fixed"
+                    style="width: 100%; min-width: 1180px"
+                  >
+                    <el-table-column
+                      prop="name"
+                      label="中文表达式"
+                      min-width="320"
+                      align="left"
+                    >
+                      <template v-slot:default="{ row }">
+                        <el-input v-model="row.name" clearable></el-input>
+                      </template>
+                    </el-table-column>
+                    <el-table-column
+                      prop="enName"
+                      label="英文表达式"
+                      min-width="280"
+                      align="left"
+                      show-overflow-tooltip
+                    ></el-table-column>
+                    <el-table-column
+                      prop="capitalize"
+                      label="大写"
+                      min-width="260"
+                      align="left"
+                      show-overflow-tooltip
+                    ></el-table-column>
+                    <el-table-column
+                      prop="capitalSplice"
+                      label="词条编码"
+                      min-width="300"
+                      align="left"
+                      show-overflow-tooltip
+                    ></el-table-column>
+                  </el-table>
+                </div>
+                <div v-if="editableTabsValue === '1'" class="tips">
+                  <div>TIPS：</div>
+                  <div>
+                    1.支持任何句子（可带标点符号），非必要情况下请用短句翻译功能。（速度快）
+                  </div>
+                  <div>
+                    2.query
+                    长度：为保证翻译质量，请将单次请求长度控制在 6000
+                    bytes以内（汉字约为输入参数 2000
+                    个），太多的话烦请再加一页。
+                  </div>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+          <el-dialog v-model="dialogVisible" title="复制" width="60%">
+            <div class="dialogMessage_text" v-html="jsonMessage"></div>
+            <input
+              class="dialogMessage"
+              type="text"
+              :value="dialogMessage"
+              id="dialogMessage"
+            />
+            <template v-slot:footer>
+              <span class="dialog-footer">
+                <el-button @click="dialogVisible = false">取消</el-button>
+              </span>
+            </template>
+          </el-dialog>
+          <table style="display: none" ref="exportTableRef">
+            <thead>
+              <tr>
+                <th>词条编码*</th>
+                <th>词条简写</th>
+                <th>中文表达式*</th>
+                <th>所属模块（租户）*</th>
+                <th>英文表达式</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, index) in tableData" :key="index">
+                <td>{{ item.capitalSplice }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.userModel }}</td>
+                <td>{{ item.enName }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-md5@0.8.3/build/md5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/element-plus@2.7.6/dist/index.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
